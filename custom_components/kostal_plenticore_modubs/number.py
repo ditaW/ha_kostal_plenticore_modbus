@@ -36,7 +36,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([
         MinimumSocNumber(inverter_coordinator, ip_address),
         MaximumSocNumber(inverter_coordinator, ip_address),
-        BatteryChargePowerNumber(inverter_coordinator, ip_address)
+        BatteryChargePowerNumber(inverter_coordinator, ip_address),
+        BatteryChargePowerNumberDC(inverter_coordinator, ip_address)
         ])
 
 
@@ -121,7 +122,7 @@ class  MaximumSocNumber(KostalModbusNumber):
         super().__init__(coordinator, ip_address, "max_soc", 1044, False, "Maximum SoC", "mdi:battery-90", "%", 5, 5)
 
 class  BatteryChargePowerNumber(KostalModbusNumber):
-    """Battery Charge Power Number Input."""
+    """Battery Charge Power Number Input AC Percent."""
 
     def __init__(self, coordinator, ip_address):
         super().__init__(
@@ -130,9 +131,26 @@ class  BatteryChargePowerNumber(KostalModbusNumber):
             "charge_power_ac",
             1030,
             True,
-            "Battery charge power",
+            "Battery charge power AC percent",
             "mdi:battery-charging-50",
             "%",
             -100,
             10
             )
+
+class  BatteryChargePowerNumberDC(KostalModbusNumber):
+    """Battery Charge Power Number Input."""
+
+    def __init__(self, coordinator, ip_address):
+        super().__init__(
+            coordinator,
+            ip_address,
+            "charge_power_dc",
+            1034,
+            True,
+            "Battery charge power DC",
+            "mdi:battery-charging-50",
+            "W",
+            -3000,
+            1000
+        )
