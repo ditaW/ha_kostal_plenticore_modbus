@@ -138,6 +138,23 @@ class  BatteryChargePowerNumber(KostalModbusNumber):
             10
             )
 
+#class  BatteryChargePowerNumberDC(KostalModbusNumber):
+#    """Battery Charge Power Number Input."""
+#
+#    def __init__(self, coordinator, ip_address):
+#        super().__init__(
+#            coordinator,
+#            ip_address,
+#            "charge_power_dc",
+#            1034,
+#            True,
+#            "Battery charge power DC",
+#            "mdi:battery-charging-50",
+#            "W",
+#            -3000,
+#            1000
+#        )
+#
 class  BatteryChargePowerNumberDC(KostalModbusNumber):
     """Battery Charge Power Number Input."""
 
@@ -146,11 +163,11 @@ class  BatteryChargePowerNumberDC(KostalModbusNumber):
             coordinator,
             ip_address,
             "charge_power_dc",
-            1034,
+            1036,
             True,
             "Battery charge power DC",
             "mdi:battery-charging-50",
-            "W",
-            -3000,
-            1000
+            "%",
+            -100,
+            10
         )
