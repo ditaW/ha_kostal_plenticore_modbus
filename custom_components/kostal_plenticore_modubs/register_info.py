@@ -103,7 +103,7 @@ REGISTERS: list[RegisterInfo] = [
     RegisterInfo(112, "consumption_grid_total", " Total home consumption Grid", "Wh", "Float", "mdi:flash", "energy", 0, SensorStateClass.TOTAL_INCREASING),
     RegisterInfo(114, "consumption_pv_total", " Total home consumption PV", "Wh", "Float", "mdi:flash", "energy", 0, SensorStateClass.TOTAL_INCREASING),
     RegisterInfo(118, "consumption_total", "Total home consumption", "Wh", "Float", "mdi:flash", "energy", 0, SensorStateClass.TOTAL_INCREASING),
-    RegisterInfo(118, "worktime", "Worktime", "s", "Float", "mdi:timer", "duration", 0, SensorStateClass.TOTAL),
+    RegisterInfo(144, "worktime", "Worktime", "s", "Float", "mdi:timer", "duration", 0, SensorStateClass.TOTAL),
     RegisterInfo(156, "active_power_phase_1", "Active power Phase 1", "W", "Float", "mdi:flash", "power", 0),
     RegisterInfo(162, "active_power_phase_2", "Active power Phase 2", "W", "Float", "mdi:flash", "power", 0),
     RegisterInfo(170, "active_power_phase_3", "Active power Phase 3", "W", "Float", "mdi:flash", "power", 0),
