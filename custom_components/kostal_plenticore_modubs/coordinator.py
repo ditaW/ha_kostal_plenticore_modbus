@@ -8,6 +8,7 @@ from pymodbus.client import AsyncModbusTcpClient
 from pymodbus.exceptions import ModbusException
 
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.const import PERCENTAGE
 
 from homeassistant.core import callback
@@ -48,6 +49,11 @@ class InverterCoordinator(DataUpdateCoordinator):
         self._entry = entry
         self._ip_address = ip_address
 
+        # send every x seconds modbus keepalive to prevent kostal from falling back to default mode
+        self._keepalive_unsub = None
+        self.keepalive_interval = timedelta(seconds=30)
+        self.keepalive_setpoints: dict[int, float] = {}  # Register -> Wert
+
         hass.data.setdefault(DOMAIN, {})
         hass.data[DOMAIN].setdefault(
             entry.entry_id,
@@ -69,6 +75,36 @@ class InverterCoordinator(DataUpdateCoordinator):
             "model": MODEL,
         }
 
+    @property
+    def keepalive_active(self) -> bool:
+        return self._keepalive_unsub is not None
+
+    async def async_start_keepalive(self) -> None:
+        if self._keepalive_unsub is not None:
+            return
+        await self._async_send_setpoints()
+        self._keepalive_unsub = async_track_time_interval(
+            self.hass, self._async_keepalive_tick, self.keepalive_interval
+        )
+
+    @callback
+    def async_stop_keepalive(self) -> None:
+        if self._keepalive_unsub is not None:
+            self.keepalive_setpoints.clear()
+            self._keepalive_unsub()
+            self._keepalive_unsub = None
+
+    async def _async_keepalive_tick(self, _now) -> None:
+        await self._async_send_setpoints()
+
+    async def _async_send_setpoints(self) -> None:
+        for address, value in self.keepalive_setpoints.items():
+            await self.async_set_float_value(address, value, source="keepalive")
+
+    async def async_shutdown(self) -> None:
+        self.async_stop_keepalive()
+        await super().async_shutdown()
+
     async def _async_update_data(self):
         """Fetch data from API endpoint.
 
@@ -87,7 +123,7 @@ class InverterCoordinator(DataUpdateCoordinator):
                 address, count=count, device_id=71
             )
             if not result.isError():
-                data["registers"][address : address + count] = result.registers
+                data["registers"][address: address + count] = result.registers
             else:
                 _LOGGER.error("Error reading registers: addr=%s count=%s", address, count)
 
@@ -119,7 +155,6 @@ class InverterCoordinator(DataUpdateCoordinator):
                 # total real energy exported/imported
                 await read_holding_registers(40346, 2)
                 await read_holding_registers(40354, 2)
-
 
                 # Inverter State
                 result = await client.read_holding_registers(56, count=2, device_id=71)
@@ -172,35 +207,37 @@ class InverterCoordinator(DataUpdateCoordinator):
         finally:
             client.close()
 
-    async def async_set_float_value(self, address: int, value: float) -> None:
+    async def async_set_float_value(self, address: int, value: float, source: str = "manual") -> bool:
         """Set Float Value"""
 
-        client = AsyncModbusTcpClient(
-            self._ip_address, port=1502
-        )  # IP-Adresse und Port des Inverters
+        client = AsyncModbusTcpClient(self._ip_address, port=1502)
 
         try:
             connection = await client.connect()
-            if connection:
-                registers = client.convert_to_registers(
-                    value=value, data_type=client.DATATYPE.FLOAT32
-                )
-                result = await client.write_registers(
-                    address, values=list(reversed(registers)), device_id=71
-                )
-                if result.isError():
-                    _LOGGER.error("Error writing registers")
+            if not connection:
+                _LOGGER.error("Connection failed (write register %s)", address)
+                return False
 
-            else:
-                _LOGGER.error("Connection failed")
+            registers = client.convert_to_registers(
+                value=value, data_type=client.DATATYPE.FLOAT32
+            )
+            result = await client.write_registers(
+                address, values=list(reversed(registers)), device_id=71
+            )
+            if result.isError():
+                _LOGGER.error("Error writing register %s = %s (%s)", address, value, source)
+                return False
+
+            level = logging.DEBUG if source == "keepalive" else logging.INFO
+            _LOGGER.log(level, "Kostal write (%s): register %s = %s", source, address, value)
+            return True
 
         except ModbusException as e:
             _LOGGER.error("Modbus error: %s", e, exc_info=True)
+            return False
 
         finally:
             client.close()
-
-
 
     def read_float32(self, address: int) -> float:
         """
@@ -212,7 +249,7 @@ class InverterCoordinator(DataUpdateCoordinator):
         :rtype: float
         """
         return AsyncModbusTcpClient.convert_from_registers(
-            registers=list(reversed(self.data["registers"][address : address + 2])),
+            registers=list(reversed(self.data["registers"][address: address + 2])),
             data_type=AsyncModbusTcpClient.DATATYPE.FLOAT32,
         )
 
@@ -226,7 +263,7 @@ class InverterCoordinator(DataUpdateCoordinator):
         :rtype: int
         """
         return AsyncModbusTcpClient.convert_from_registers(
-            registers=list(self.data["registers"][address : address + 1]),
+            registers=list(self.data["registers"][address: address + 1]),
             data_type=AsyncModbusTcpClient.DATATYPE.INT16,
         )
 
@@ -240,10 +277,9 @@ class InverterCoordinator(DataUpdateCoordinator):
         :rtype: int
         """
         return AsyncModbusTcpClient.convert_from_registers(
-            registers=list(self.data["registers"][address : address + 1]),
+            registers=list(self.data["registers"][address: address + 1]),
             data_type=AsyncModbusTcpClient.DATATYPE.UINT16,
         )
-
 
     def read_int32(self, address: int) -> int:
         """
@@ -255,7 +291,7 @@ class InverterCoordinator(DataUpdateCoordinator):
         :rtype: int
         """
         return AsyncModbusTcpClient.convert_from_registers(
-            registers=list(reversed(self.data["registers"][address : address + 2])),
+            registers=list(reversed(self.data["registers"][address: address + 2])),
             data_type=AsyncModbusTcpClient.DATATYPE.INT32,
         )
 
@@ -269,6 +305,6 @@ class InverterCoordinator(DataUpdateCoordinator):
         :rtype: int
         """
         return AsyncModbusTcpClient.convert_from_registers(
-            registers=list(reversed(self.data["registers"][address : address + 2])),
+            registers=list(reversed(self.data["registers"][address: address + 2])),
             data_type=AsyncModbusTcpClient.DATATYPE.UINT32,
         )

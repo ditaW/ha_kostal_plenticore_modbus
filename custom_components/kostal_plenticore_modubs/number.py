@@ -27,27 +27,29 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the number inputs from a config entry."""
-    
+
     ip_address = entry.data[CONF_IP_ADDRESS]
 
     inverter_coordinator = entry.runtime_data.inverter_coordinator
     async_add_entities([
         MinimumSocNumber(inverter_coordinator, ip_address),
         MaximumSocNumber(inverter_coordinator, ip_address),
-        BatteryChargePowerNumber(inverter_coordinator, ip_address),
+        # BatteryChargePowerNumber(inverter_coordinator, ip_address),
         BatteryChargePowerNumberDC(inverter_coordinator, ip_address)
-        ])
+    ])
 
 
-class  KostalModbusNumber(CoordinatorEntity, NumberEntity):
+class KostalModbusNumber(CoordinatorEntity, NumberEntity):
     """number input."""
-    
+
     _attr_mode = "slider"
     _attr_suggested_display_precision = 0
 
-    def __init__(self, coordinator, ip_address, property_name, modbus_address, is_scaled, name, icon, unit, min_value, step):
+    def __init__(self, coordinator, ip_address, property_name, modbus_address,
+                 is_scaled, name, icon, unit, min_value, step, is_setpoint=False):
         super().__init__(coordinator, context=0)
 
         self._ip_address = ip_address  # Initialize the IP address
@@ -59,9 +61,10 @@ class  KostalModbusNumber(CoordinatorEntity, NumberEntity):
         self._modbus_address = modbus_address
         self._is_scaled = is_scaled
         self._attr_icon = icon
-        self._attr_native_unit_of_measurement = unit        
+        self._attr_native_unit_of_measurement = unit
         self._attr_native_min_value = min_value
         self._attr_native_step = step
+        self._is_setpoint = is_setpoint
 
     @property
     def name(self):
@@ -89,12 +92,10 @@ class  KostalModbusNumber(CoordinatorEntity, NumberEntity):
     def native_value(self):
         return self.coordinator.read_float32(self._modbus_address) * self.scale_factor
 
-
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self.async_write_ha_state()
-
 
     async def async_update(self):
         """Synchronize state"""
@@ -103,25 +104,27 @@ class  KostalModbusNumber(CoordinatorEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
+        if self._is_setpoint:
+            self.coordinator.keepalive_setpoints[self._modbus_address] = value
         await self.coordinator.async_set_float_value(self._modbus_address, value)
+        await self.coordinator.async_request_refresh()
 
 
-
-
-
-class  MinimumSocNumber(KostalModbusNumber):
+class MinimumSocNumber(KostalModbusNumber):
     """Minimum Battery SoC Number Input."""
 
     def __init__(self, coordinator, ip_address):
         super().__init__(coordinator, ip_address, "min_soc", 1042, False, "Mininum SoC", "mdi:battery-10", "%", 5, 5)
 
-class  MaximumSocNumber(KostalModbusNumber):
+
+class MaximumSocNumber(KostalModbusNumber):
     """Maximum Battery SoC Number Input."""
 
     def __init__(self, coordinator, ip_address):
         super().__init__(coordinator, ip_address, "max_soc", 1044, False, "Maximum SoC", "mdi:battery-90", "%", 5, 5)
 
-class  BatteryChargePowerNumber(KostalModbusNumber):
+
+class BatteryChargePowerNumberAC(KostalModbusNumber):
     """Battery Charge Power Number Input AC Percent."""
 
     def __init__(self, coordinator, ip_address):
@@ -135,28 +138,13 @@ class  BatteryChargePowerNumber(KostalModbusNumber):
             "mdi:battery-charging-50",
             "%",
             -100,
-            10
-            )
+            10,
+            is_setpoint=True
+        )
 
-#class  BatteryChargePowerNumberDC(KostalModbusNumber):
-#    """Battery Charge Power Number Input."""
-#
-#    def __init__(self, coordinator, ip_address):
-#        super().__init__(
-#            coordinator,
-#            ip_address,
-#            "charge_power_dc",
-#            1034,
-#            True,
-#            "Battery charge power DC",
-#            "mdi:battery-charging-50",
-#            "W",
-#            -3000,
-#            1000
-#        )
-#
-class  BatteryChargePowerNumberDC(KostalModbusNumber):
-    """Battery Charge Power Number Input."""
+
+class BatteryChargePowerNumberDC(KostalModbusNumber):
+    """Battery Charge Power Number Input DC Percent."""
 
     def __init__(self, coordinator, ip_address):
         super().__init__(
@@ -165,9 +153,10 @@ class  BatteryChargePowerNumberDC(KostalModbusNumber):
             "charge_power_dc",
             1036,
             True,
-            "Battery charge power DC",
+            "Battery charge power DC percent",
             "mdi:battery-charging-50",
             "%",
             -100,
-            10
+            10,
+            is_setpoint=True
         )

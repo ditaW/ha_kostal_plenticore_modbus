@@ -135,17 +135,17 @@ class KostalSensor(CoordinatorEntity, SensorEntity):
     _attr_suggested_display_precision = None
 
     def __init__(
-        self,
-        coordinator,
-        ip_address,
-        register_address,
-        unique_id,
-        name,
-        icon,
-        device_class,
-        native_unit_of_measurement,
-        suggested_display_precision,
-        sensor_state_class=SensorStateClass.MEASUREMENT,
+            self,
+            coordinator,
+            ip_address,
+            register_address,
+            unique_id,
+            name,
+            icon,
+            device_class,
+            native_unit_of_measurement,
+            suggested_display_precision,
+            sensor_state_class=SensorStateClass.MEASUREMENT,
     ):
         super().__init__(coordinator, context=0)
 
@@ -204,17 +204,17 @@ class KostalFloat32Sensor(KostalSensor):
     """Kostal FLOAT32 sensor."""
 
     def __init__(
-        self,
-        coordinator,
-        ip_address,
-        register_address,
-        unique_id,
-        name,
-        icon,
-        device_class,
-        native_unit_of_measurement,
-        suggested_display_precision,
-        sensor_state_class=SensorStateClass.MEASUREMENT,
+            self,
+            coordinator,
+            ip_address,
+            register_address,
+            unique_id,
+            name,
+            icon,
+            device_class,
+            native_unit_of_measurement,
+            suggested_display_precision,
+            sensor_state_class=SensorStateClass.MEASUREMENT,
     ):
         super().__init__(
             coordinator,
@@ -239,17 +239,17 @@ class KostalInt16Sensor(KostalSensor):
     """Kostal INT16 sensor."""
 
     def __init__(
-        self,
-        coordinator,
-        ip_address,
-        register_address,
-        unique_id,
-        name,
-        icon,
-        device_class,
-        native_unit_of_measurement,
-        suggested_display_precision,
-        sensor_state_class=SensorStateClass.MEASUREMENT,
+            self,
+            coordinator,
+            ip_address,
+            register_address,
+            unique_id,
+            name,
+            icon,
+            device_class,
+            native_unit_of_measurement,
+            suggested_display_precision,
+            sensor_state_class=SensorStateClass.MEASUREMENT,
     ):
         super().__init__(
             coordinator,
@@ -274,17 +274,17 @@ class KostalUInt16Sensor(KostalSensor):
     """Kostal UINT16 sensor."""
 
     def __init__(
-        self,
-        coordinator,
-        ip_address,
-        register_address,
-        unique_id,
-        name,
-        icon,
-        device_class,
-        native_unit_of_measurement,
-        suggested_display_precision,
-        sensor_state_class=SensorStateClass.MEASUREMENT,
+            self,
+            coordinator,
+            ip_address,
+            register_address,
+            unique_id,
+            name,
+            icon,
+            device_class,
+            native_unit_of_measurement,
+            suggested_display_precision,
+            sensor_state_class=SensorStateClass.MEASUREMENT,
     ):
         super().__init__(
             coordinator,
@@ -309,17 +309,17 @@ class KostalInt32Sensor(KostalSensor):
     """Kostal INT32 sensor."""
 
     def __init__(
-        self,
-        coordinator,
-        ip_address,
-        register_address,
-        unique_id,
-        name,
-        icon,
-        device_class,
-        native_unit_of_measurement,
-        suggested_display_precision,
-        sensor_state_class=SensorStateClass.MEASUREMENT,
+            self,
+            coordinator,
+            ip_address,
+            register_address,
+            unique_id,
+            name,
+            icon,
+            device_class,
+            native_unit_of_measurement,
+            suggested_display_precision,
+            sensor_state_class=SensorStateClass.MEASUREMENT,
     ):
         super().__init__(
             coordinator,
@@ -344,17 +344,17 @@ class KostalUInt32Sensor(KostalSensor):
     """Kostal UINT32 sensor."""
 
     def __init__(
-        self,
-        coordinator,
-        ip_address,
-        register_address,
-        unique_id,
-        name,
-        icon,
-        device_class,
-        native_unit_of_measurement,
-        suggested_display_precision,
-        sensor_state_class=SensorStateClass.MEASUREMENT,
+            self,
+            coordinator,
+            ip_address,
+            register_address,
+            unique_id,
+            name,
+            icon,
+            device_class,
+            native_unit_of_measurement,
+            suggested_display_precision,
+            sensor_state_class=SensorStateClass.MEASUREMENT,
     ):
         super().__init__(
             coordinator,

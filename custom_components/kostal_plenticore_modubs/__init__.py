@@ -15,7 +15,7 @@ from .coordinator import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[str] = [ "sensor", "number" ]
+PLATFORMS: list[str] = ["sensor", "number", "switch"]
 
 
 @dataclass
@@ -24,10 +24,10 @@ class KostalPlenticoreModbusData:
     inverter_coordinator: InverterCoordinator
 
 
-
 async def async_setup(hass: core.HomeAssistant, config: dict):
     hass.data.setdefault(DOMAIN, {})
     return True
+
 
 async def async_setup_entry(hass: core.HomeAssistant, entry: config_entries.ConfigEntry):
     hass.data[DOMAIN][entry.entry_id] = {}
@@ -38,15 +38,17 @@ async def async_setup_entry(hass: core.HomeAssistant, entry: config_entries.Conf
 
     await inverter_coordinator.async_config_entry_first_refresh()
     entry.runtime_data = KostalPlenticoreModbusData(
-        inverter_coordinator = inverter_coordinator
+        inverter_coordinator=inverter_coordinator
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
 
+
 async def async_unload_entry(hass: core.HomeAssistant, entry: config_entries.ConfigEntry) -> bool:
     """Unload a config entry."""
+    entry.runtime_data.inverter_coordinator.async_stop_keepalive()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
