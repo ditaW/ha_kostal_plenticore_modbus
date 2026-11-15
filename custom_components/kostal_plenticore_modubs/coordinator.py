@@ -30,11 +30,11 @@ REGISTER_COUNT = 40356
 # Index 18 = "Unknown" in the inverter state enum of the sensor platform
 INVERTER_STATE_UNKNOWN = 18
 
-POLL_INTERVAL = timedelta(seconds=15)
+POLL_INTERVAL = timedelta(seconds=9)
 KEEPALIVE_INTERVAL = timedelta(seconds=30)
 
 # Slow blocks are read only every SLOW_EVERY-th poll (4 x 15 s = ~60 s).
-SLOW_EVERY = 5
+SLOW_EVERY = 7
 
 # (start address, register count)
 # Fast blocks: read on every poll.
@@ -172,7 +172,7 @@ class InverterCoordinator(DataUpdateCoordinator):
             try:
                 if not await client.connect():
                     raise UpdateFailed("Connection to inverter failed")
-                _LOGGER.debug("connect took %.2fs", time.monotonic() - started)
+                #_LOGGER.debug("connect took %.2fs", time.monotonic() - started)
 
                 for address, count in blocks:
                     t_block = time.monotonic()
@@ -187,12 +187,6 @@ class InverterCoordinator(DataUpdateCoordinator):
 
                     self._registers[address: address + count] = result.registers
                     ok_blocks += 1
-                    _LOGGER.debug(
-                        "read %s+%s took %.2fs",
-                        address,
-                        count,
-                        time.monotonic() - t_block,
-                    )
 
                 # Inverter state
                 result = await client.read_holding_registers(
