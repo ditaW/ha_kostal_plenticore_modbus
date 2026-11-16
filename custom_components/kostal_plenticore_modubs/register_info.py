@@ -146,6 +146,6 @@ REGISTERS: list[RegisterInfo] = [
     RegisterInfo(1062, "total_dc_energy_from_pv3", "Total DC energy from PV3", "Wh", "Float", "mdi:flash", "energy", 0, SensorStateClass.TOTAL_INCREASING),
     RegisterInfo(1064, "total_energy_ac_side_to_grid", "Total energy AC-side to grid", "Wh", "Float", "mdi:flash", "energy", 0, SensorStateClass.TOTAL_INCREASING),
     RegisterInfo(1066, "total_dc_power_sum_of_all_pv_inputs", "Total DC power (sum of all PV inputs)", "W", "Float", "mdi:flash", "power", 0),
-    RegisterInfo(40346, "total_real_energy_exported", "Total Real Energy Exported", "Wh", "U32", "mdi:flash", "energy", 0, SensorStateClass.TOTAL_INCREASING),
-    RegisterInfo(40354, "total_real_energy_imported", "Total Real Energy Imported", "Wh", "U32", "mdi:flash", "energy", 0, SensorStateClass.TOTAL_INCREASING),
+    RegisterInfo(40346, "total_real_energy_exported", "Total Real Energy Exported", "Wh", "U32BE", "mdi:flash", "energy", 0, SensorStateClass.TOTAL_INCREASING),
+    RegisterInfo(40354, "total_real_energy_imported", "Total Real Energy Imported", "Wh", "U32BE", "mdi:flash", "energy", 0, SensorStateClass.TOTAL_INCREASING),
 ]

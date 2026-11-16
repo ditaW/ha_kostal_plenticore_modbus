@@ -172,7 +172,7 @@ class InverterCoordinator(DataUpdateCoordinator):
             try:
                 if not await client.connect():
                     raise UpdateFailed("Connection to inverter failed")
-                #_LOGGER.debug("connect took %.2fs", time.monotonic() - started)
+                # _LOGGER.debug("connect took %.2fs", time.monotonic() - started)
 
                 for address, count in blocks:
                     t_block = time.monotonic()
@@ -310,5 +310,12 @@ class InverterCoordinator(DataUpdateCoordinator):
         """Read a UInt32 value from the register image."""
         return AsyncModbusTcpClient.convert_from_registers(
             registers=list(reversed(self.data["registers"][address: address + 2])),
+            data_type=AsyncModbusTcpClient.DATATYPE.UINT32,
+        )
+
+    def read_uint32_be(self, address: int) -> int:
+        """Read a UInt32 value (SunSpec, big-endian word order)."""
+        return AsyncModbusTcpClient.convert_from_registers(
+            registers=list(self.data["registers"][address: address + 2]),
             data_type=AsyncModbusTcpClient.DATATYPE.UINT32,
         )

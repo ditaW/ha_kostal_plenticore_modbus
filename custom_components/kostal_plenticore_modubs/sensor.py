@@ -84,6 +84,21 @@ async def async_setup_entry(hass, entry, async_add_entities):
                         ri.sensor_state_class,
                     )
                 )
+            case "U32BE":
+                sensors.append(
+                    KostalUInt32BESensor(
+                        inverter_coordinator,
+                        ip_address,
+                        ri.address,
+                        ri.unique_id,
+                        ri.name,
+                        ri.icon,
+                        ri.device_class,
+                        ri.unit,
+                        ri.display_precision,
+                        ri.sensor_state_class,
+                    )
+                )
             case "S32":
                 sensors.append(
                     KostalInt32Sensor(
@@ -373,6 +388,14 @@ class KostalUInt32Sensor(KostalSensor):
     def state(self):
         """Return the state of the sensor."""
         return self._filtered_state(self.coordinator.read_uint32(self._register_address))
+
+
+class KostalUInt32BESensor(KostalUInt32Sensor):
+    """Kostal UINT32 sensor, SunSpec (big-endian word order)."""
+
+    @property
+    def state(self):
+        return self._filtered_state(self.coordinator.read_uint32_be(self._register_address))
 
 
 class InverterStateSensor(CoordinatorEntity, SensorEntity):
