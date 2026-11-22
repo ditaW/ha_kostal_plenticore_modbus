@@ -55,6 +55,15 @@ SLOW_BLOCKS: list[tuple[int, int]] = [
     (40354, 2),  # total real energy imported
 ]
 
+# Registers that can be sent as external battery control values
+SEND_SWITCH_REGISTERS = (1034, 1036, 1038, 1040)
+
+# 1034 (W) and 1036 (%) must not be sent together
+EXCLUSIVE_SETPOINTS = {1034: 1036, 1036: 1034}
+
+# Send state if nothing was restored (1036 = previous behaviour)
+DEFAULT_SEND_ENABLED = {1036}
+
 
 class InverterCoordinator(DataUpdateCoordinator):
     """Inverter coordinator.
@@ -91,6 +100,7 @@ class InverterCoordinator(DataUpdateCoordinator):
         self._keepalive_unsub = None
         self.keepalive_interval = KEEPALIVE_INTERVAL
         self.keepalive_setpoints: dict[int, float] = {}  # register -> value
+        self._send_enabled: set[int] = set(DEFAULT_SEND_ENABLED)
 
         hass.data.setdefault(DOMAIN, {})
         hass.data[DOMAIN].setdefault(
@@ -116,7 +126,6 @@ class InverterCoordinator(DataUpdateCoordinator):
     # ------------------------------------------------------------------
     # Keep-alive
     # ------------------------------------------------------------------
-
     @property
     def keepalive_active(self) -> bool:
         return self._keepalive_unsub is not None
@@ -142,16 +151,42 @@ class InverterCoordinator(DataUpdateCoordinator):
     async def _async_send_setpoints(self) -> None:
         # copy: the dict may be changed by the UI while we are awaiting
         for address, value in list(self.keepalive_setpoints.items()):
+            if not self.is_send_enabled(address):
+                continue
             await self.async_set_float_value(address, value, source="keepalive")
 
     async def async_shutdown(self) -> None:
         self.async_stop_keepalive()
         await super().async_shutdown()
 
+    def is_send_enabled(self, address: int) -> bool:
+        return address not in SEND_SWITCH_REGISTERS or address in self._send_enabled
+
+    def _apply_send_enabled(self, address: int, enabled: bool) -> None:
+        if enabled:
+            self._send_enabled.add(address)
+            other = EXCLUSIVE_SETPOINTS.get(address)
+            if other is not None:
+                self._send_enabled.discard(other)
+        else:
+            self._send_enabled.discard(address)
+
+    @callback
+    def restore_send_enabled(self, address: int, enabled: bool) -> None:
+        self._apply_send_enabled(address, enabled)
+
+    async def async_set_send_enabled(self, address: int, enabled: bool) -> None:
+        self._apply_send_enabled(address, enabled)
+        self.async_update_listeners()
+        # push an already stored value right away instead of waiting for the next tick
+        if enabled and self.keepalive_active and address in self.keepalive_setpoints:
+            await self.async_set_float_value(
+                address, self.keepalive_setpoints[address], source="manual"
+            )
+
     # ------------------------------------------------------------------
     # Polling
     # ------------------------------------------------------------------
-
     async def _async_update_data(self):
         """Fetch data from the inverter.
 

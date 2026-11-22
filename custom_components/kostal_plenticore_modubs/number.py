@@ -1,28 +1,15 @@
 import logging
 
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.number import NumberEntity, NumberMode
+from homeassistant.core import callback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.const import PERCENTAGE
-
-from homeassistant.components.number import (
-    NumberEntity
-)
-
-from homeassistant.core import (
-    HomeAssistant,
-    callback
-)
-
-from .coordinator import (
-    InverterCoordinator
-)
 
 from .const import (
     DOMAIN,
     CONF_IP_ADDRESS,
     MANUFACTURER,
     MODEL,
-    NAME
+    NAME,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,19 +24,22 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([
         MinimumSocNumber(inverter_coordinator, ip_address),
         MaximumSocNumber(inverter_coordinator, ip_address),
-        # BatteryChargePowerNumber(inverter_coordinator, ip_address),
-        BatteryChargePowerNumberDC(inverter_coordinator, ip_address)
+        # BatteryChargePowerNumberAC(inverter_coordinator, ip_address),
+        BatteryChargePowerNumberDC(inverter_coordinator, ip_address),       # 1036, %
+        BatteryChargePowerNumberDCAbs(inverter_coordinator, ip_address),    # 1034, W
+        BatteryMaxChargePowerLimitNumber(inverter_coordinator, ip_address),     # 1038, W
+        BatteryMaxDischargePowerLimitNumber(inverter_coordinator, ip_address),  # 1040, W
     ])
 
 
 class KostalModbusNumber(CoordinatorEntity, NumberEntity):
     """number input."""
 
-    _attr_mode = "slider"
     _attr_suggested_display_precision = 0
 
     def __init__(self, coordinator, ip_address, property_name, modbus_address,
-                 is_scaled, name, icon, unit, min_value, step, is_setpoint=False):
+                 is_scaled, name, icon, unit, min_value, step, is_setpoint=False,
+                 max_value=100, mode=NumberMode.SLIDER):
         super().__init__(coordinator, context=0)
 
         self._ip_address = ip_address  # Initialize the IP address
@@ -63,7 +53,9 @@ class KostalModbusNumber(CoordinatorEntity, NumberEntity):
         self._attr_icon = icon
         self._attr_native_unit_of_measurement = unit
         self._attr_native_min_value = min_value
+        self._attr_native_max_value = max_value
         self._attr_native_step = step
+        self._attr_mode = mode
         self._is_setpoint = is_setpoint
 
     @property
@@ -90,7 +82,22 @@ class KostalModbusNumber(CoordinatorEntity, NumberEntity):
 
     @property
     def native_value(self):
+        # Setpoints: show the value the user chose (even if it is currently not
+        # sent), otherwise the value read back from the inverter.
+        if self._is_setpoint:
+            stored = self.coordinator.keepalive_setpoints.get(self._modbus_address)
+            if stored is not None:
+                return stored
         return self.coordinator.read_float32(self._modbus_address) * self.scale_factor
+
+    @property
+    def extra_state_attributes(self):
+        if not self._is_setpoint:
+            return None
+        return {
+            "send_enabled": self.coordinator.is_send_enabled(self._modbus_address),
+            "register": self._modbus_address,
+        }
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -106,6 +113,13 @@ class KostalModbusNumber(CoordinatorEntity, NumberEntity):
         """Update the current value."""
         if self._is_setpoint:
             self.coordinator.keepalive_setpoints[self._modbus_address] = value
+            if not self.coordinator.is_send_enabled(self._modbus_address):
+                _LOGGER.info(
+                    "%s = %s stored, not sent (send switch for register %s is off)",
+                    self._name, value, self._modbus_address,
+                )
+                self.async_write_ha_state()
+                return
         await self.coordinator.async_set_float_value(self._modbus_address, value)
         await self.coordinator.async_request_refresh()
 
@@ -144,7 +158,7 @@ class BatteryChargePowerNumberAC(KostalModbusNumber):
 
 
 class BatteryChargePowerNumberDC(KostalModbusNumber):
-    """Battery Charge Power Number Input DC Percent."""
+    """Battery Charge Power Number Input DC Percent (register 1036)."""
 
     def __init__(self, coordinator, ip_address):
         super().__init__(
@@ -159,4 +173,70 @@ class BatteryChargePowerNumberDC(KostalModbusNumber):
             -100,
             10,
             is_setpoint=True
+        )
+
+
+class BatteryChargePowerNumberDCAbs(KostalModbusNumber):
+    """Battery charge/discharge power DC in watt (register 1034).
+
+    Negative = charge, positive = discharge.
+    """
+
+    def __init__(self, coordinator, ip_address):
+        super().__init__(
+            coordinator,
+            ip_address,
+            "charge_power_dc_abs",
+            1034,
+            False,
+            "Battery charge power DC",
+            "mdi:battery-charging-50",
+            "W",
+            -10000,
+            10,
+            is_setpoint=True,
+            max_value=10000,
+            mode=NumberMode.BOX,
+        )
+
+
+class BatteryMaxChargePowerLimitNumber(KostalModbusNumber):
+    """Battery max. charge power limit in watt (register 1038)."""
+
+    def __init__(self, coordinator, ip_address):
+        super().__init__(
+            coordinator,
+            ip_address,
+            "max_charge_power_limit",
+            1038,
+            False,
+            "Battery max charge power limit",
+            "mdi:battery-charging-90",
+            "W",
+            0,
+            10,
+            is_setpoint=True,
+            max_value=10000,
+            mode=NumberMode.BOX,
+        )
+
+
+class BatteryMaxDischargePowerLimitNumber(KostalModbusNumber):
+    """Battery max. discharge power limit in watt (register 1040)."""
+
+    def __init__(self, coordinator, ip_address):
+        super().__init__(
+            coordinator,
+            ip_address,
+            "max_discharge_power_limit",
+            1040,
+            False,
+            "Battery max discharge power limit",
+            "mdi:battery-charging-10",
+            "W",
+            0,
+            10,
+            is_setpoint=True,
+            max_value=10000,
+            mode=NumberMode.BOX,
         )
